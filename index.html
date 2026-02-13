@@ -775,11 +775,11 @@
         // Create a container heavily styled to be off-screen but "renderable"
         const container = document.createElement("div");
         container.style.cssText = `
-                position: fixed; 
+                position: absolute;
                 top: 0; 
-                left: 100vw; 
+                left: 0;
                 width: 1200px; 
-                z-index: 9999;
+                z-index: -9999;
                 background: #fff;
             `;
 
@@ -817,11 +817,7 @@
             scale: 2,
             useCORS: true,
             windowWidth: 1200,
-            windowHeight: 675,
-            x: 0,
-            y: 0,
-            scrollX: 0,
-            scrollY: 0
+            windowHeight: 675
           },
           jsPDF: { unit: 'px', format: [1200, 675], orientation: 'landscape', hotfixes: ["px_scaling"] }
         };
