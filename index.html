@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Start Speaking German Today — HTML Deck</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body
+  style="margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0b0b0d; color:#111;">
+  <!-- App shell -->
+  <div
+    style="min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:18px; gap:14px;">
+
+    <!-- PDF Download Button -->
+    <div style="width:min(1200px, 96vw); display:flex; justify-content:flex-end; margin-bottom:-10px;">
+      <button id="downloadPdf"
+        style="cursor:pointer; padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:#1a1a1f; color:#fff; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Download PDF
+      </button>
+    </div>
+
+    <!-- Slide frame (16:9) -->
+    <div id="deck" style="
+        width:min(1200px, 96vw);
+        aspect-ratio:16/9;
+        background:#eef1f4;
+        border-radius:18px;
+        box-shadow:0 16px 60px rgba(0,0,0,.35);
+        position:relative;
+        overflow:hidden;
+      ">
+      <!-- Decorative background layer (shared) -->
+      <div aria-hidden="true" style="position:absolute; inset:0; pointer-events:none;">
+        <!-- subtle diagonal texture -->
+        <div style="position:absolute; inset:-30%; transform:rotate(-18deg); opacity:.08;">
+          <div style="width:100%; height:100%; background:
+            repeating-linear-gradient(90deg, #000 0 2px, transparent 2px 28px),
+            repeating-linear-gradient(0deg, #000 0 2px, transparent 2px 28px);
+          "></div>
+        </div>
+
+        <!-- accent blocks (red/yellow/black) -->
+        <div
+          style="position:absolute; left:-40px; top:110px; width:140px; height:140px; background:#d71f1f; border-radius:22px;">
+        </div>
+        <div
+          style="position:absolute; right:-60px; bottom:-60px; width:220px; height:220px; background:#f2c200; border-radius:26px;">
+        </div>
+        <div
+          style="position:absolute; right:-20px; bottom:40px; width:120px; height:120px; background:#111; border-radius:20px; opacity:.18;">
+        </div>
+
+        <!-- small squares -->
+        <div style="position:absolute; left:40px; bottom:40px; width:14px; height:14px; background:#111; opacity:.45;">
+        </div>
+        <div
+          style="position:absolute; left:66px; bottom:40px; width:14px; height:14px; background:#f2c200; opacity:.95;">
+        </div>
+        <div
+          style="position:absolute; left:40px; bottom:66px; width:14px; height:14px; background:#d71f1f; opacity:.95;">
+        </div>
+
+        <!-- top accent bar -->
+        <div
+          style="position:absolute; left:78px; top:34px; width:150px; height:12px; background:#d71f1f; border-radius:10px;">
+        </div>
+      </div>
+
+      <!-- Slides container -->
+      <div id="slides" style="position:absolute; inset:0;"></div>
+
+
+    </div>
+
+    <!-- Controls -->
+    <div style="width:min(1200px, 96vw); display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button id="prevBtn"
+          style="cursor:pointer; border:none; padding:10px 14px; border-radius:12px; background:#1a1a1f; color:#fff; font-weight:650;">
+          ◀ Prev
+        </button>
+        <button id="nextBtn"
+          style="cursor:pointer; border:none; padding:10px 14px; border-radius:12px; background:#1a1a1f; color:#fff; font-weight:650;">
+          Next ▶
+        </button>
+        <div id="counter" style="color:#cfd3da; font-size:13px; opacity:.9;"></div>
+      </div>
+
+      <div id="dots" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;"></div>
+    </div>
+
+    <div style="color:#cfd3da; font-size:12px; opacity:.9;">
+      Tip: Use ← → arrow keys
+    </div>
+  </div>
+
+  <script>
+    // ---- UTILS ----
+    const el = (tag, style, html) => {
+      const n = document.createElement(tag);
+      if (style) n.setAttribute("style", style);
+      if (html !== undefined) n.innerHTML = html;
+      return n;
+    };
+
+    // simple inline SVG icons
+    const waveIcon = `
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M43 96c-6 0-10-4-10-10V44c0-4 3-7 7-7h8" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+      <path d="M50 37v48" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+      <path d="M64 40v44" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+      <path d="M78 47v33" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+      <path d="M92 57v18" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+      <path d="M96 28c10 7 16 18 16 32 0 11-4 22-11 30" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+      <path d="M103 20c12 9 19 23 19 40 0 14-5 28-14 38" stroke="#111" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+    </svg>
+  `;
+
+    const trophyIcon = `
+    <svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M70 40h100v38c0 40-26 74-50 74S70 118 70 78V40Z" stroke="#f2c200" stroke-width="10" />
+      <path d="M90 152h60" stroke="#f2c200" stroke-width="10" stroke-linecap="round"/>
+      <path d="M100 162v22h40v-22" stroke="#f2c200" stroke-width="10" />
+      <path d="M86 184h68v18H86v-18Z" stroke="#f2c200" stroke-width="10" />
+      <path d="M70 56H40c0 30 16 48 40 48" stroke="#f2c200" stroke-width="10" stroke-linecap="round"/>
+      <path d="M170 56h30c0 30-16 48-40 48" stroke="#f2c200" stroke-width="10" stroke-linecap="round"/>
+      <path d="M190 30l10-16 10 16 16 4-12 12 3 16-17-9-17 9 3-16-12-12 15-4Z" stroke="#f2c200" stroke-width="6" />
+    </svg>
+  `;
+
+    // ---- content (15 slides)
+    const slidesData = [
+      // 1
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:50%; top:34px; transform:translateX(-50%); padding:8px 16px; border-radius:999px; background:#111; color:#fff; font-weight:800; letter-spacing:.4px; font-size:14px; display:flex; align-items:center; gap:10px;",
+              `<span style="display:inline-block; width:10px; height:10px; border-radius:3px; background:#d71f1f;"></span>
+             <span>GERMAN A1.1</span>
+             <span style="display:inline-block; width:10px; height:10px; border-radius:3px; background:#f2c200;"></span>`
+            ),
+            el("div", "position:absolute; left:0; right:0; top:110px; text-align:center; font-weight:900; font-size:64px; letter-spacing:-1px;", "Willkommen to German!"),
+            el("div", "position:absolute; left:0; right:0; top:190px; text-align:center; font-weight:850; font-size:32px; opacity:.95;", "Lesson 0: Alphabet &amp; Hallo"),
+            // simple “city” illustration block
+            el("div", "position:absolute; left:50%; top:265px; transform:translateX(-50%); width:520px; height:220px;", ""),
+            el("div", "position:absolute; left:0; right:0; bottom:140px; text-align:center; font-weight:900; font-size:42px;", "Goal: Start Speaking Today."),
+            el("div", "position:absolute; left:0; right:0; bottom:96px; text-align:center; font-size:16px; opacity:.7;", "No prior knowledge needed. A self-paced visual guide.")
+          );
+
+          // City SVG (simple stylized)
+          const city = el("div", "position:absolute; left:50%; top:265px; transform:translateX(-50%); width:520px; height:220px;");
+          city.innerHTML = `
+          <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="160" width="520" height="12" fill="#111" opacity=".15"/>
+            <polygon points="80,160 140,80 200,160" fill="#111"/>
+            <polygon points="170,160 235,60 300,160" fill="#111"/>
+            <rect x="310" y="90" width="60" height="70" fill="#111"/>
+            <rect x="95" y="120" width="80" height="40" fill="#d71f1f"/>
+            <rect x="180" y="120" width="95" height="40" fill="#f2c200"/>
+            <rect x="315" y="120" width="50" height="40" fill="#d71f1f"/>
+            <rect x="60" y="160" width="360" height="16" fill="#111" opacity=".28"/>
+            <circle cx="410" cy="90" r="10" fill="#f2c200"/>
+            <rect x="420" y="100" width="24" height="60" fill="#111"/>
+            <rect x="428" y="110" width="8" height="40" fill="#d71f1f"/>
+          </svg>
+        `;
+          root.append(city);
+        }
+      },
+
+      // 2
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:0; right:0; top:74px; text-align:center; font-weight:950; font-size:44px;", "The Secret: You Already Know 80% of It."),
+            el("div", "position:absolute; left:90px; top:160px; width:360px;", ""),
+            el("div", "position:absolute; right:90px; top:160px; width:360px;", ""),
+            el("div", "position:absolute; left:50%; top:240px; transform:translateX(-50%); width:40px; height:200px; display:flex; align-items:center; justify-content:center;", ""),
+            el("div", "position:absolute; right:90px; top:168px; width:220px; border:2px solid rgba(0,0,0,.25); border-radius:12px; background:#fff; padding:12px;",
+              `<div style="font-weight:900; font-size:14px; margin-bottom:6px;">Pro Tip</div>
+             <div style="font-size:12px; line-height:1.35; opacity:.8;">
+               <b>IBM Plex Mono</b><br/>
+               Don’t confuse “der Buchstabe” (the letter) with the English word “book”.
+               They look similar, but have different meanings.
+             </div>`
+            ),
+            el("div", "position:absolute; left:50%; bottom:98px; transform:translateX(-50%); font-weight:850; font-size:22px; opacity:.9;",
+              `But watch out—some are tricksters.`),
+            el("div", "position:absolute; left:50%; bottom:56px; transform:translateX(-50%); display:flex; align-items:center; gap:10px; opacity:.85;",
+              `<div style="width:0; height:0; border-left:14px solid transparent; border-right:14px solid transparent; border-bottom:24px solid #f2c200;"></div>
+             <div style="font-size:14px;">Same alphabet (26 letters), different sounds for a few.</div>`
+            )
+          );
+
+          // left alphabet block
+          const left = el("div", "position:absolute; left:90px; top:160px; width:360px; height:300px; background:#fff; border:2px solid rgba(0,0,0,.2); border-radius:12px; padding:16px;");
+          left.innerHTML = `
+          <div style="font-weight:900; font-size:16px; margin-bottom:10px;">English Alphabet</div>
+          <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; font-weight:900; font-size:26px; color:#111; opacity:.22;">
+            ${"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(ch => `<div style="text-align:center;">${ch}</div>`).join("")}
+          </div>
+        `;
+          root.append(left);
+
+          // right alphabet block
+          const right = el("div", "position:absolute; right:90px; top:160px; width:360px; height:300px; background:#fff; border:2px solid rgba(0,0,0,.2); border-radius:12px; padding:16px;");
+          right.innerHTML = `
+          <div style="font-weight:900; font-size:16px; margin-bottom:10px;">German Alphabet</div>
+          <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; font-weight:900; font-size:26px; color:#111; opacity:.92;">
+            ${[..."ABCDEFGHIJKLMNOPQRSTUVWXYZ", "Ä", "Ö", "Ü", "ß"].map(ch => {
+            const style = ["Ä", "Ö", "Ü", "ß"].includes(ch) ? "color:#d71f1f;" : "";
+            return `<div style="text-align:center; ${style}">${ch}</div>`;
+          }).join("")}
+          </div>
+        `;
+          root.append(right);
+
+          // connector
+          const connector = el("div", "position:absolute; left:50%; top:230px; transform:translateX(-50%); width:90px; height:220px;");
+          connector.innerHTML = `
+          <svg width="90" height="220" viewBox="0 0 90 220" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 0 C10 60, 80 60, 80 110 C80 160, 10 160, 10 220" stroke="#111" stroke-width="10" fill="none"/>
+            <path d="M10 0 C10 60, 80 60, 80 110 C80 160, 10 160, 10 220" stroke="#d71f1f" stroke-width="6" fill="none"/>
+            <path d="M10 0 C10 60, 80 60, 80 110 C80 160, 10 160, 10 220" stroke="#f2c200" stroke-width="4" fill="none"/>
+          </svg>
+        `;
+          root.append(connector);
+        }
+      },
+
+      // 3
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:0; right:0; top:70px; text-align:center; font-weight:950; font-size:48px;", "The Tricky Six: False Friends"),
+            el("div", "position:absolute; left:90px; top:155px; width:520px; background:#fff; border-radius:14px; border:2px solid rgba(0,0,0,.22); overflow:hidden;", ""),
+            el("div", "position:absolute; right:90px; top:210px; width:260px; background:#fff; border-radius:14px; border:3px solid #d71f1f; padding:14px;", "")
+          );
+
+          const table = el("div", "position:absolute; left:90px; top:155px; width:520px; background:#fff; border-radius:14px; border:2px solid rgba(0,0,0,.22); overflow:hidden;");
+          table.innerHTML = `
+          <div style="display:grid; grid-template-columns:90px 215px 215px; background:#f4f6f8; border-bottom:2px solid rgba(0,0,0,.12); font-weight:900;">
+            <div style="padding:12px;">Letter</div>
+            <div style="padding:12px;">German Sound</div>
+            <div style="padding:12px;">English Approx</div>
+          </div>
+          ${[
+              ["E", "“Eh” (Short /e/)", "Like ‘e’ in Pet"],
+              ["I", "“Eee” (Long /i/)", "Like ‘ee’ in See"],
+              ["J", "Yot", "Like ‘y’ in Yes"],
+              ["V", "Fow", "Like ‘f’ in Father"],
+              ["W", "Vee", "Like ‘v’ in Vest"],
+              ["Z", "Tsett", "Like ‘ts’ in Cats"]
+            ].map((r, i) => {
+              const hi = (r[0] === "V" || r[0] === "W") ? 'background:#f2c200; opacity:.9;' : '';
+              return `
+              <div style="display:grid; grid-template-columns:90px 215px 215px; border-bottom:1px solid rgba(0,0,0,.1); ${hi}">
+                <div style="padding:12px; font-weight:950;">${r[0]}</div>
+                <div style="padding:12px;">${r[1]}</div>
+                <div style="padding:12px;">${r[2]}</div>
+              </div>
+            `;
+            }).join("")}
+        `;
+          root.append(table);
+
+          const note = el("div", "position:absolute; right:90px; top:210px; width:260px; background:#fff; border-radius:14px; border:3px solid #d71f1f; padding:14px;");
+          note.innerHTML = `
+          <div style="font-weight:950; margin-bottom:10px;">Remember:</div>
+          <div style="font-size:14px; line-height:1.35; opacity:.9;">
+            “Wasser” (Water)<br/>
+            is pronounced “Vasser”.
+          </div>
+          <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
+            <div style="width:16px; height:16px; background:#d71f1f;"></div>
+            <div style="width:16px; height:16px; background:#f2c200;"></div>
+            <div style="width:16px; height:16px; background:#111;"></div>
+          </div>
+        `;
+          root.append(note);
+        }
+      },
+
+      // 4
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:78px; top:62px; font-weight:950; font-size:52px;", "Quick Check: The ‘V’ Sound"),
+            el("div", "position:absolute; left:90px; top:150px; right:90px; bottom:120px; background:#fff; border-radius:18px; border:6px solid #111; padding:24px;", "")
+          );
+
+          const card = el("div", "position:absolute; left:90px; top:150px; right:90px; bottom:120px; background:#fff; border-radius:18px; border:6px solid #111; padding:24px;");
+          card.innerHTML = `
+          <div style="font-size:28px; font-weight:800; margin-bottom:18px;">
+            Which German letter sounds like the English ‘V’ (as in Vest)?
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:18px; font-size:34px; font-weight:900;">
+            <div style="display:flex; align-items:center; gap:16px;"><span style="font-size:40px;">•</span> A) <span style="font-weight:800;">The letter V</span></div>
+            <div style="display:flex; align-items:center; gap:16px;"><span style="font-size:40px;">•</span> B) <span style="font-weight:800;">The letter W</span></div>
+            <div style="display:flex; align-items:center; gap:16px;"><span style="font-size:40px;">•</span> C) <span style="font-weight:800;">The letter F</span></div>
+          </div>
+        `;
+          root.append(card);
+        }
+      },
+
+      // 5
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:0; right:0; top:70px; text-align:center; font-weight:950; font-size:52px;", "The Special Four: Umlauts"),
+            el("div", "position:absolute; left:0; right:0; top:132px; text-align:center; font-size:18px; opacity:.8;", "Umlaut = the dots that change the sound."),
+            el("div", "position:absolute; left:80px; top:190px; right:80px; display:flex; gap:28px; justify-content:space-between;", ""),
+            el("div", "position:absolute; left:70px; right:70px; bottom:70px; background:#fff; border:5px solid #d71f1f; border-radius:16px; padding:16px; display:flex; align-items:center; gap:14px;",
+              `<div style="width:0; height:0; border-left:16px solid transparent; border-right:16px solid transparent; border-bottom:28px solid #f2c200;"></div>
+             <div style="font-weight:900; font-size:20px;">Do not ignore the dots! They change the meaning completely.</div>`
+            )
+          );
+
+          const row = el("div", "position:absolute; left:80px; top:190px; right:80px; display:flex; gap:28px; justify-content:space-between;");
+          const card = (borderColor, letter, desc, ex) => `
+          <div style="flex:1; background:#fff; border-radius:16px; border:6px solid ${borderColor}; padding:18px; text-align:center;">
+            <div style="font-size:86px; font-weight:950; line-height:1;">${letter}</div>
+            <div style="margin-top:10px; font-size:14px; opacity:.85;">${desc}</div>
+            <div style="margin-top:6px; font-size:13px; opacity:.7;">Ex: ${ex}</div>
+          </div>
+        `;
+          row.innerHTML = card("#f2c200", "Ä", "Sounds like ‘e’ in Melon.", "Äpfel (Apples)")
+            + card("#d71f1f", "Ö", "Deep sound, round lips.", "Öl (Oil)")
+            + card("#111", "Ü", "Deep sound, pursed lips.", "Über (Over)");
+          root.append(row);
+        }
+      },
+
+      // 6
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:0; right:0; top:70px; text-align:center; font-weight:950; font-size:52px;", "The Shape-Shifter: Eszett (ß)"),
+            el("div", "position:absolute; left:120px; top:210px; font-weight:900; font-size:22px; opacity:.85;", "Looks like a B"),
+            el("div", "position:absolute; right:120px; top:210px; font-weight:900; font-size:22px; opacity:.85; text-align:right;", "Sounds like<br/>a snake hiss"),
+            el("div", "position:absolute; left:50%; top:200px; transform:translateX(-50%); font-weight:950; font-size:220px; line-height:1; color:#111;", "ß"),
+            el("div", "position:absolute; left:50%; bottom:120px; transform:translateX(-50%); font-size:24px; font-weight:900;", "ß = ss (Sharp, unvoiced S)"),
+            el("div", "position:absolute; left:90px; right:90px; bottom:70px; font-size:12px; opacity:.7;",
+              "Example: Straße (Street). Note: You will never see this letter at the start of a word.")
+          );
+
+          // arrows
+          root.append(
+            el("div", "position:absolute; left:240px; top:215px; width:0; height:0; border-top:18px solid transparent; border-bottom:18px solid transparent; border-left:30px solid #d71f1f;"),
+            el("div", "position:absolute; right:240px; top:260px; width:0; height:0; border-top:18px solid transparent; border-bottom:18px solid transparent; border-right:30px solid #d71f1f;")
+          );
+        }
+      },
+
+      // 7
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:0; right:0; top:70px; text-align:center; font-weight:950; font-size:50px;", "The Universal Code: Greetings"),
+            el("div", "position:absolute; left:90px; top:170px; right:90px; bottom:120px; display:flex; gap:24px;", ""),
+            el("div", "position:absolute; left:0; right:0; bottom:80px; text-align:center; font-size:14px; opacity:.75;",
+              "Tschüss is informal and fun to say. Try it out loud!")
+          );
+
+          const row = el("div", "position:absolute; left:90px; top:170px; right:90px; bottom:120px; display:flex; gap:24px;");
+          row.innerHTML = `
+          <div style="flex:1; background:#fff; border:2px solid rgba(0,0,0,.2); border-radius:18px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;">
+            ${waveIcon}
+            <div style="font-weight:950; font-size:44px;">Hallo</div>
+            <div style="opacity:.75; font-size:18px;">Hello</div>
+          </div>
+          <div style="width:2px; background:rgba(0,0,0,.18); border-radius:2px;"></div>
+          <div style="flex:1; background:#fff; border:2px solid rgba(0,0,0,.2); border-radius:18px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;">
+            ${waveIcon}
+            <div style="font-weight:950; font-size:44px;">Tschüss</div>
+            <div style="opacity:.75; font-size:18px;">Bye<br/><span style="font-size:14px; opacity:.75;">T-shh-eu-ss</span></div>
+          </div>
+        `;
+          root.append(row);
+        }
+      },
+
+      // 8
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:78px; top:70px; font-weight:950; font-size:56px;", "Manners Matter"),
+            el("div", "position:absolute; left:120px; top:170px; font-size:44px; font-weight:950;", "Danke"),
+            el("div", "position:absolute; left:290px; top:180px; font-size:34px; font-weight:800; opacity:.85;", "= Thank you"),
+            el("div", "position:absolute; left:120px; top:245px; font-size:44px; font-weight:950;", "Bitte"),
+            el("div", "position:absolute; left:290px; top:255px; font-size:34px; font-weight:800; opacity:.85;", "= The Double Agent"),
+            el("div", "position:absolute; left:140px; bottom:105px; right:140px; height:210px;", "")
+          );
+
+          const diagram = el("div", "position:absolute; left:140px; bottom:105px; right:140px; height:210px;");
+          diagram.innerHTML = `
+          <div style="position:absolute; left:50%; top:20px; transform:translateX(-50%); font-weight:950; font-size:24px;">Bitte</div>
+
+          <div style="position:absolute; left:0; top:40px; width:220px; height:70px; background:#111; color:#fff; border-radius:14px; display:flex; align-items:center; justify-content:center; font-weight:900;">
+            Meaning 1:<br/>Please
+          </div>
+          <div style="position:absolute; right:0; top:40px; width:220px; height:70px; background:#111; color:#fff; border-radius:14px; display:flex; align-items:center; justify-content:center; font-weight:900;">
+            Meaning 2:<br/>You're welcome
+          </div>
+
+          <div style="position:absolute; left:235px; top:75px; width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; border-left:22px solid #d71f1f;"></div>
+          <div style="position:absolute; right:235px; top:75px; width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; border-right:22px solid #d71f1f;"></div>
+
+          <div style="position:absolute; left:50%; bottom:26px; transform:translateX(-50%); display:flex; gap:160px; align-items:center;">
+            <div style="width:66px; height:66px; border-radius:999px; border:4px solid #111; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:950;">
+              <div>A</div><div style="font-size:12px; opacity:.7;">Danke</div>
+            </div>
+            <div style="width:66px; height:66px; border-radius:999px; border:4px solid #111; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:950;">
+              <div>B</div><div style="font-size:12px; opacity:.7;">Bitte</div>
+            </div>
+          </div>
+
+          <div style="position:absolute; left:50%; bottom:58px; transform:translateX(-50%); width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; border-left:22px solid #d71f1f;"></div>
+        `;
+          root.append(diagram);
+        }
+      },
+
+      // 9
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:0; right:0; top:70px; text-align:center; font-weight:950; font-size:56px;", "Identity: Who are you?"),
+            el("div", "position:absolute; left:0; right:0; top:150px; text-align:center; font-weight:900; opacity:.85;", "Sentence Builder"),
+            el("div", "position:absolute; left:50%; top:200px; transform:translateX(-50%); width:640px; height:160px; display:flex; border-radius:18px; overflow:hidden; border:2px solid rgba(0,0,0,.2);", ""),
+            el("div", "position:absolute; left:0; right:0; top:380px; text-align:center; font-size:14px; opacity:.75;",
+              "Alternative: Mein Name ist [Name]"),
+            el("div", "position:absolute; left:50%; bottom:90px; transform:translateX(-50%); width:720px; background:#111; color:#fff; border-radius:16px; padding:14px; border:4px solid #d71f1f;",
+              `<div style="font-weight:950; margin-bottom:6px;">Grammar Alert</div>
+             <div style="font-size:13px; line-height:1.3; opacity:.92;">
+               Avoid the “Ich bin heiße” mistake. It is just “Ich heiße” (I am called).
+             </div>`
+            )
+          );
+
+          const bar = el("div", "position:absolute; left:50%; top:200px; transform:translateX(-50%); width:640px; height:160px; display:flex; border-radius:18px; overflow:hidden; border:2px solid rgba(0,0,0,.2);");
+          bar.innerHTML = `
+          <div style="flex:1; background:#111; color:#fff; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+            <div style="font-size:44px; font-weight:950;">Ich</div>
+            <div style="font-size:12px; opacity:.8;">I</div>
+          </div>
+          <div style="flex:1; background:#d71f1f; color:#fff; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+            <div style="font-size:44px; font-weight:950;">heiße</div>
+            <div style="font-size:12px; opacity:.85;">am called</div>
+          </div>
+          <div style="flex:1; background:#f2c200; color:#111; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+            <div style="font-size:36px; font-weight:950;">[Name]</div>
+          </div>
+        `;
+          root.append(bar);
+        }
+      },
+
+      // 10
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:0; right:0; top:80px; text-align:center; font-weight:950; font-size:56px;", "The Conversation"),
+            el("div", "position:absolute; left:110px; top:220px; width:420px; height:130px; background:#fff; border-radius:18px; border:2px solid rgba(0,0,0,.2); display:flex; align-items:center; justify-content:center; flex-direction:column;", ""),
+            el("div", "position:absolute; left:310px; top:410px; width:420px; height:130px; background:#f2c200; border-radius:18px; border:2px solid rgba(0,0,0,.22); display:flex; align-items:center; justify-content:center; flex-direction:column;", ""),
+            el("div", "position:absolute; right:95px; top:220px; width:250px; height:320px; border-left:3px solid rgba(0,0,0,.25); padding-left:18px;", "")
+          );
+
+          const q = document.createElement("div");
+          q.setAttribute("style", "position:absolute; left:110px; top:220px; width:420px; height:130px; background:#fff; border-radius:18px; border:2px solid rgba(0,0,0,.2); display:flex; align-items:center; justify-content:center; flex-direction:column;");
+          q.innerHTML = `
+          <div style="font-weight:950; font-size:38px;">Wie heißt du?</div>
+          <div style="font-size:12px; opacity:.7; margin-top:6px;">How are you called?</div>
+        `;
+          root.append(q);
+
+          const a = document.createElement("div");
+          a.setAttribute("style", "position:absolute; left:310px; top:410px; width:420px; height:130px; background:#f2c200; border-radius:18px; border:2px solid rgba(0,0,0,.22); display:flex; align-items:center; justify-content:center; flex-direction:column;");
+          a.innerHTML = `<div style="font-weight:950; font-size:42px;">Ich heiße Anna.</div>`;
+          root.append(a);
+
+          const tip = document.createElement("div");
+          tip.setAttribute("style", "position:absolute; right:95px; top:220px; width:250px; height:320px; border-left:3px solid rgba(0,0,0,.25); padding-left:18px;");
+          tip.innerHTML = `
+          <div style="font-weight:950; display:flex; align-items:center; gap:10px;">
+            <span style="display:inline-flex; width:34px; height:34px; border-radius:999px; background:#f2c200; align-items:center; justify-content:center; font-weight:950;">💡</span>
+            Pro Tip
+          </div>
+          <div style="margin-top:12px; font-size:14px; line-height:1.35; opacity:.8;">
+            Notice we say <b>“Wie”</b> (How), not “Was” (What).
+          </div>
+        `;
+          root.append(tip);
+        }
+      },
+
+      // 11
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:0; right:0; top:80px; text-align:center; font-weight:950; font-size:52px;", "Quick Check: Introductions"),
+            el("div", "position:absolute; left:130px; top:185px; right:130px; height:270px; background:#fff; border-radius:18px; border:3px solid rgba(0,0,0,.25); padding:22px;", ""),
+            el("div", "position:absolute; left:130px; right:130px; bottom:90px; background:#fff; border-radius:14px; border:4px solid #111; padding:14px;", "")
+          );
+
+          const box = el("div", "position:absolute; left:130px; top:185px; right:130px; height:270px; background:#fff; border-radius:18px; border:3px solid rgba(0,0,0,.25); padding:22px;");
+          box.innerHTML = `
+          <div style="text-align:center; font-weight:850; font-size:18px; opacity:.9;">
+            How do you say “My name is” using the verb “heißen”?
+          </div>
+          <div style="margin-top:26px; display:flex; flex-direction:column; gap:18px; font-size:20px;">
+            <div>A) Ich bin heiße…</div>
+            <div style="background:#f2c200; padding:10px 12px; border-radius:12px; display:flex; align-items:center; gap:10px;">
+              <span style="font-weight:950;">✓</span> <span style="font-weight:900;">B) Ich heiße…</span>
+            </div>
+            <div>C) Hallo Name…</div>
+          </div>
+        `;
+          root.append(box);
+
+          const fb = el("div", "position:absolute; left:130px; right:130px; bottom:90px; background:#fff; border-radius:14px; border:4px solid #111; padding:14px;");
+          fb.innerHTML = `
+          <div style="font-size:13px; opacity:.82; line-height:1.35;">
+            Correct! “Ich heiße” literally means “I am called”. Option A is a common mistake where people try to add “am” (bin) unnecessarily.
+          </div>
+        `;
+          root.append(fb);
+        }
+      },
+
+      // 12
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:80px; top:80px; font-weight:950; font-size:58px;", "Let’s Practice: Spelling"),
+            el("div", "position:absolute; left:80px; top:150px; font-size:18px; opacity:.8;", "Can you spell the word ‘Name’ in German?"),
+            el("div", "position:absolute; left:80px; top:230px; right:320px; height:260px; display:flex; gap:18px;", ""),
+            el("div", "position:absolute; right:110px; top:250px; width:200px; height:220px; display:flex; align-items:center; justify-content:center;", "")
+          );
+
+          const blocks = el("div", "position:absolute; left:80px; top:230px; right:320px; height:260px; display:flex; gap:18px;");
+          const letterCard = (L, phon) => `
+          <div style="flex:1; background:#fff; border:3px solid rgba(0,0,0,.25); border-radius:18px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden;">
+            <div style="position:absolute; inset:0; background:
+              linear-gradient(135deg, transparent 0 70%, rgba(242,194,0,.35) 70% 78%, transparent 78% 100%);
+              opacity:.9;
+            "></div>
+            <div style="font-weight:950; font-size:76px; position:relative;">${L}</div>
+            <div style="position:relative; opacity:.85; font-size:16px; margin-top:6px;">${phon}</div>
+          </div>
+        `;
+          blocks.innerHTML = letterCard("N", "[ɛn]") + letterCard("A", "[a:]") + letterCard("M", "[ɛm]") + letterCard("E", "[e:]");
+          root.append(blocks);
+
+          const arrow = el("div", "position:absolute; right:110px; top:250px; width:200px; height:220px;");
+          arrow.innerHTML = `
+          <svg width="200" height="220" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+            <path d="M30 110h100" stroke="#d71f1f" stroke-width="14" stroke-linecap="round"/>
+            <path d="M120 55l60 55-60 55" fill="none" stroke="#d71f1f" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="18" y="120" width="120" height="84" rx="14" fill="#111"/>
+            <text x="78" y="152" text-anchor="middle" font-size="12" fill="#fff" font-weight="800" font-family="system-ui, sans-serif">
+              In German, we rarely
+            </text>
+            <text x="78" y="170" text-anchor="middle" font-size="12" fill="#fff" font-weight="800" font-family="system-ui, sans-serif">
+              have silent Es.
+            </text>
+            <text x="78" y="190" text-anchor="middle" font-size="11" fill="#fff" opacity=".85" font-family="system-ui, sans-serif">
+              Pronounce it:
+            </text>
+            <text x="78" y="206" text-anchor="middle" font-size="12" fill="#f2c200" font-weight="900" font-family="system-ui, sans-serif">
+              (Nah-meh)
+            </text>
+          </svg>
+        `;
+          root.append(arrow);
+        }
+      },
+
+      // 13
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:0; right:0; top:70px; text-align:center; font-weight:950; font-size:60px;", "Your Turn"),
+            el("div", "position:absolute; left:0; right:0; top:140px; text-align:center; font-size:16px; opacity:.75;",
+              "Spell your own name aloud using the German sounds."),
+            el("div", "position:absolute; left:50%; top:230px; transform:translateX(-50%) rotate(-8deg); width:430px; height:250px; background:#fff; border-radius:22px; border:6px solid #111; box-shadow:0 18px 40px rgba(0,0,0,.18);", ""),
+            el("div", "position:absolute; right:90px; top:220px; width:220px; background:#fff; border-radius:18px; border:2px solid rgba(0,0,0,.18); padding:14px;", ""),
+            el("div", "position:absolute; left:0; right:0; bottom:70px; text-align:center; font-size:14px; opacity:.75;",
+              "Spelling is crucial in German. Get comfortable with your letters!")
+          );
+
+          const card = el("div", "position:absolute; left:50%; top:230px; transform:translateX(-50%) rotate(-8deg); width:430px; height:250px; background:#fff; border-radius:22px; border:6px solid #111; box-shadow:0 18px 40px rgba(0,0,0,.18);");
+          card.innerHTML = `
+          <div style="position:absolute; left:0; right:0; top:0; height:18px; background:#d71f1f;"></div>
+          <div style="position:absolute; left:20px; right:20px; top:70px; font-weight:950; font-size:44px; text-align:center;">Ich heiße…</div>
+          <div style="position:absolute; left:90px; right:90px; top:155px; height:10px; background:#f2c200; border-radius:999px;"></div>
+        `;
+          root.append(card);
+
+          const cheat = el("div", "position:absolute; right:90px; top:220px; width:220px; background:#fff; border-radius:18px; border:2px solid rgba(0,0,0,.18); padding:14px;");
+          cheat.innerHTML = `
+          <div style="font-weight:950; font-size:18px; margin-bottom:8px;">Cheat Sheet</div>
+          <div style="font-size:13px; line-height:1.45; opacity:.85;">
+            <div><b>E</b> = Eh</div>
+            <div><b>I</b> = Eee</div>
+            <div><b>J</b> = Yot</div>
+            <div><b>V</b> = Fow</div>
+            <div><b>W</b> = Vee</div>
+            <div><b>Z</b> = Tsett</div>
+          </div>
+        `;
+          root.append(cheat);
+        }
+      },
+
+      // 14
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:80px; top:80px; font-weight:950; font-size:62px;", "Mission Accomplished!"),
+            el("div", "position:absolute; left:90px; top:200px; width:520px; display:flex; flex-direction:column; gap:18px; font-size:20px;", ""),
+            el("div", "position:absolute; right:60px; top:155px; width:300px; height:420px; display:flex; align-items:center; justify-content:center;", "")
+          );
+
+          const list = el("div", "position:absolute; left:90px; top:200px; width:520px; display:flex; flex-direction:column; gap:18px; font-size:20px;");
+          const item = (t) => `
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            <div style="width:26px; height:26px; border-radius:6px; background:#2bb673; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:950;">✓</div>
+            <div style="font-weight:850; line-height:1.25;">${t}</div>
+          </div>
+        `;
+          list.innerHTML =
+            item("<b>Alphabet:</b> 26 + 4 Specials identified.") +
+            item("<b>Pronunciation:</b> Mastered V vs. W and the Umlauts.") +
+            item("<b>Greetings:</b> Hallo &amp; Tschüss acquired.") +
+            item("<b>Intro:</b> Can say “Ich heiße…”.");
+          root.append(list);
+
+          const trophy = el("div", "position:absolute; right:60px; top:155px; width:300px; height:420px; display:flex; align-items:center; justify-content:center;");
+          trophy.innerHTML = trophyIcon;
+          root.append(trophy);
+        }
+      },
+
+      // 15
+      {
+        render(root) {
+          root.append(
+            el("div", "position:absolute; left:80px; top:70px; font-weight:950; font-size:74px;", "Next Steps"),
+            el("div", "position:absolute; left:110px; top:210px; width:700px; height:250px;", ""),
+            el("div", "position:absolute; left:90px; bottom:90px; width:520px; background:#fff; border-radius:18px; border:2px solid rgba(0,0,0,.18); padding:16px; font-size:20px; font-weight:850;",
+              "Practice spelling your name this week."),
+            el("div", "position:absolute; right:90px; bottom:90px; font-weight:950; font-size:54px; transform:rotate(-4deg);", "Tschüss!")
+          );
+
+          const arrow = el("div", "position:absolute; left:110px; top:210px; width:700px; height:250px;");
+          arrow.innerHTML = `
+          <svg width="700" height="250" viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg">
+            <path d="M60 60h420l80-40v80l-80-40H60V60Z" fill="none" stroke="#111" stroke-width="12" />
+            <path d="M60 60h420l80-40v80l-80-40H60V60Z" fill="none" stroke="#d71f1f" stroke-width="8" />
+            <path d="M60 60h420l80-40v80l-80-40H60V60Z" fill="none" stroke="#f2c200" stroke-width="6" />
+            <text x="90" y="112" font-size="22" font-weight="900" font-family="system-ui, sans-serif" fill="#111">
+              Coming up in Lesson 1:
+            </text>
+            <text x="90" y="150" font-size="22" font-weight="900" font-family="system-ui, sans-serif" fill="#111">
+              Essential Vocabulary.
+            </text>
+          </svg>
+        `;
+          root.append(arrow);
+        }
+      }
+    ];
+
+    // ---- ENGINE ----
+    class SlideDeck {
+      constructor(slides) {
+        this.slides = slides;
+        this.current = 0;
+        this.slideNodes = [];
+        this.dotNodes = [];
+
+        // MOUNT
+        this.slidesHost = document.getElementById("slides");
+        this.dotsHost = document.getElementById("dots");
+        this.counter = document.getElementById("counter");
+
+        this.init();
+      }
+
+      init() {
+        // 1. Create Slide Nodes
+        this.slideNodes = this.slides.map((s, idx) => {
+          const node = document.createElement("div");
+          node.style.cssText = "position:absolute; inset:0; padding:0; opacity:0; transform:scale(.995); transition:opacity .18s ease, transform .18s ease;";
+
+          const inner = document.createElement("div");
+          inner.style.cssText = "position:absolute; inset:0; padding:34px 44px;";
+          node.append(inner);
+
+          // Render content
+          s.render(inner);
+          this.slidesHost.append(node);
+          return node;
+        });
+
+        // 2. Create Dots
+        this.dotNodes = this.slides.map((_, i) => {
+          const b = document.createElement("button");
+          b.ariaLabel = `Go to slide ${i + 1}`;
+          b.style.cssText = "cursor:pointer; width:10px; height:10px; border-radius:999px; border:none; background:rgba(255,255,255,.25); padding:0;";
+          b.onclick = () => this.show(i);
+          this.dotsHost.append(b);
+          return b;
+        });
+
+        // 3. Bind Controls
+        document.getElementById("prevBtn").onclick = () => this.move(-1);
+        document.getElementById("nextBtn").onclick = () => this.move(1);
+        window.onkeydown = (e) => {
+          if (e.key === "ArrowLeft") this.move(-1);
+          if (e.key === "ArrowRight") this.move(1);
+        };
+
+        // 4. Bind PDF
+        document.getElementById("downloadPdf").onclick = () => this.downloadPDF();
+
+        // 5. Start
+        this.show(0);
+      }
+
+      move(dir) {
+        this.show(this.current + dir);
+      }
+
+      show(i) {
+        this.current = (i + this.slides.length) % this.slides.length;
+
+        // Toggle Slides
+        this.slideNodes.forEach((n, idx) => {
+          const on = idx === this.current;
+          n.style.opacity = on ? "1" : "0";
+          n.style.transform = on ? "scale(1)" : "scale(.995)";
+          n.style.pointerEvents = on ? "auto" : "none";
+        });
+
+        // Toggle Dots
+        this.dotNodes.forEach((d, idx) => {
+          const on = idx === this.current;
+          d.style.background = on ? "#f2c200" : "rgba(255,255,255,.25)";
+          d.style.width = on ? "22px" : "10px";
+          d.style.transition = "all .18s ease";
+        });
+
+        // Update Counter
+        this.counter.textContent = `Slide ${this.current + 1} / ${this.slides.length}`;
+      }
+
+      downloadPDF() {
+        const btn = document.getElementById("downloadPdf");
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "Generating...";
+        btn.style.opacity = "0.7";
+
+        // Create a container heavily styled to be off-screen but "renderable"
+        const container = document.createElement("div");
+        container.style.cssText = `
+                position: fixed; 
+                top: 0; 
+                left: 100vw; 
+                width: 1200px; 
+                z-index: 9999;
+                background: #fff;
+            `;
+
+        const deck = document.getElementById("deck");
+        const decoTemplate = deck.firstElementChild; // Decorative background
+
+        this.slides.forEach((slideData) => {
+          const wrapper = document.createElement("div");
+          wrapper.style.cssText = "position:relative; width:1200px; height:675px; overflow:hidden; background-color:#eef1f4; margin-bottom:0; page-break-after: always;";
+
+          // Clone Background Template
+          const decoClone = decoTemplate.cloneNode(true);
+          decoClone.style.inset = "0";
+          decoClone.style.position = "absolute";
+          wrapper.appendChild(decoClone);
+
+          // Create Content Container
+          const content = document.createElement("div");
+          content.style.cssText = "position:absolute; inset:0; padding:34px 44px;";
+
+          // Render Slide Content Fresh
+          slideData.render(content);
+
+          wrapper.appendChild(content);
+          container.appendChild(wrapper);
+        });
+
+        document.body.appendChild(container);
+
+        const opt = {
+          margin: 0,
+          filename: 'presentation.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            windowWidth: 1200,
+            windowHeight: 675,
+            x: 0,
+            y: 0,
+            scrollX: 0,
+            scrollY: 0
+          },
+          jsPDF: { unit: 'px', format: [1200, 675], orientation: 'landscape', hotfixes: ["px_scaling"] }
+        };
+
+        // Use a promise to ensure render time
+        setTimeout(() => {
+          html2pdf().set(opt).from(container).save().then(() => {
+            btn.innerHTML = originalText;
+            btn.style.opacity = "1";
+            document.body.removeChild(container);
+          }).catch(err => {
+            console.error("PDF generation failed:", err);
+            btn.innerHTML = "Error!";
+          });
+        }, 500);
+      }
+    }
+
+    // Boot
+    new SlideDeck(slidesData);
+  </script>
+</body>
+
+</html>
