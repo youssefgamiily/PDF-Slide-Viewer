@@ -772,15 +772,18 @@
         btn.innerHTML = "Generating...";
         btn.style.opacity = "0.7";
 
-        // Create a container heavily styled to be off-screen but "renderable"
+        // Create a container off-screen (not behind the page) so html2canvas can paint it.
         const container = document.createElement("div");
         container.style.cssText = `
-                position: absolute;
+                position: fixed;
                 top: 0; 
-                left: 0;
+                left: -20000px;
                 width: 1200px; 
-                z-index: -9999;
+                z-index: 0;
                 background: #fff;
+                opacity: 1;
+                visibility: visible;
+                pointer-events: none;
             `;
 
         const deck = document.getElementById("deck");
@@ -830,7 +833,9 @@
             document.body.removeChild(container);
           }).catch(err => {
             console.error("PDF generation failed:", err);
-            btn.innerHTML = "Error!";
+            btn.innerHTML = originalText;
+            btn.style.opacity = "1";
+            if (document.body.contains(container)) document.body.removeChild(container);
           });
         }, 500);
       }
