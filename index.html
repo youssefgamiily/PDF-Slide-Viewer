@@ -766,73 +766,110 @@
         this.counter.textContent = `Slide ${this.current + 1} / ${this.slides.length}`;
       }
 
-      downloadPDF() {
+      async downloadPDF() {
         const btn = document.getElementById("downloadPdf");
         const originalText = btn.innerHTML;
-        btn.innerHTML = "Generating...";
-        btn.style.opacity = "0.7";
+        const params = new URLSearchParams(window.location.search);
+        const debugPDF = params.get("pdfDebug") === "1";
+        const slideLimit = debugPDF ? 1 : this.slides.length;
+        const diagnostics = [];
 
-        // Create a container heavily styled to be off-screen but "renderable"
-        const container = document.createElement("div");
-        container.style.cssText = `
-                position: absolute;
-                top: 0; 
-                left: 0;
-                width: 1200px; 
-                z-index: -9999;
-                background: #fff;
-            `;
+        btn.innerHTML = debugPDF ? "Debug Export..." : "Generating...";
+        btn.style.opacity = "0.7";
 
         const deck = document.getElementById("deck");
         const decoTemplate = deck.firstElementChild; // Decorative background
 
-        this.slides.forEach((slideData) => {
-          const wrapper = document.createElement("div");
-          wrapper.style.cssText = "position:relative; width:1200px; height:675px; overflow:hidden; background-color:#eef1f4; margin-bottom:0; page-break-after: always;";
+        const exportHost = document.createElement("div");
+        exportHost.style.cssText = `
+                position: fixed;
+                inset: 0;
+                z-index: 9999;
+                pointer-events: none;
+                opacity: 0;
+            `;
 
-          // Clone Background Template
-          const decoClone = decoTemplate.cloneNode(true);
-          decoClone.style.inset = "0";
-          decoClone.style.position = "absolute";
-          wrapper.appendChild(decoClone);
+        document.body.appendChild(exportHost);
 
-          // Create Content Container
-          const content = document.createElement("div");
-          content.style.cssText = "position:absolute; inset:0; padding:34px 44px;";
-
-          // Render Slide Content Fresh
-          slideData.render(content);
-
-          wrapper.appendChild(content);
-          container.appendChild(wrapper);
-        });
-
-        document.body.appendChild(container);
-
-        const opt = {
-          margin: 0,
-          filename: 'presentation.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            windowWidth: 1200,
-            windowHeight: 675
-          },
-          jsPDF: { unit: 'px', format: [1200, 675], orientation: 'landscape', hotfixes: ["px_scaling"] }
+        const waitForPaint = async () => {
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         };
 
-        // Use a promise to ensure render time
-        setTimeout(() => {
-          html2pdf().set(opt).from(container).save().then(() => {
-            btn.innerHTML = originalText;
-            btn.style.opacity = "1";
-            document.body.removeChild(container);
-          }).catch(err => {
-            console.error("PDF generation failed:", err);
-            btn.innerHTML = "Error!";
-          });
-        }, 500);
+        try {
+          if (document.fonts?.ready) await document.fonts.ready;
+
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF({ unit: "px", format: [1200, 675], orientation: "landscape", hotfixes: ["px_scaling"] });
+
+          for (let i = 0; i < slideLimit; i++) {
+            const slideData = this.slides[i];
+
+            const wrapper = document.createElement("div");
+            wrapper.style.cssText = "position:relative; width:1200px; height:675px; overflow:hidden; background-color:#eef1f4;";
+
+            const decoClone = decoTemplate.cloneNode(true);
+            decoClone.style.inset = "0";
+            decoClone.style.position = "absolute";
+            wrapper.appendChild(decoClone);
+
+            const content = document.createElement("div");
+            content.style.cssText = "position:absolute; inset:0; padding:34px 44px;";
+            slideData.render(content);
+            wrapper.appendChild(content);
+
+            exportHost.innerHTML = "";
+            exportHost.appendChild(wrapper);
+
+            await waitForPaint();
+
+            const canvas = await html2canvas(wrapper, {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: "#eef1f4",
+              width: 1200,
+              height: 675,
+              windowWidth: 1200,
+              windowHeight: 675
+            });
+
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            const imageData = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height).data : null;
+            let hasVisiblePixels = false;
+            if (imageData) {
+              for (let p = 3; p < imageData.length; p += 4) {
+                if (imageData[p] > 0) {
+                  hasVisiblePixels = true;
+                  break;
+                }
+              }
+            }
+
+            diagnostics.push({
+              slide: i + 1,
+              width: canvas.width,
+              height: canvas.height,
+              hasVisiblePixels
+            });
+
+            const imgData = canvas.toDataURL("image/jpeg", 0.98);
+            if (i > 0) pdf.addPage([1200, 675], "landscape");
+            pdf.addImage(imgData, "JPEG", 0, 0, 1200, 675, undefined, "FAST");
+          }
+
+          const filename = debugPDF ? "presentation-debug.pdf" : "presentation.pdf";
+          pdf.save(filename);
+
+          if (debugPDF) {
+            console.table(diagnostics);
+            alert(`Debug export done: ${filename}. Check console for slide diagnostics.`);
+          }
+        } catch (err) {
+          console.error("PDF generation failed:", err);
+        } finally {
+          btn.innerHTML = originalText;
+          btn.style.opacity = "1";
+          if (document.body.contains(exportHost)) document.body.removeChild(exportHost);
+        }
       }
     }
 
