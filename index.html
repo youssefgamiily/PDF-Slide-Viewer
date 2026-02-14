@@ -798,8 +798,11 @@
         try {
           if (document.fonts?.ready) await document.fonts.ready;
 
-          const { jsPDF } = window.jspdf;
-          const pdf = new jsPDF({ unit: "px", format: [1200, 675], orientation: "landscape", hotfixes: ["px_scaling"] });
+          const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
+          if (!jsPDFCtor) {
+            throw new Error("jsPDF is not available on window.jspdf.jsPDF or window.jsPDF");
+          }
+          const pdf = new jsPDFCtor({ unit: "px", format: [1200, 675], orientation: "landscape", hotfixes: ["px_scaling"] });
 
           for (let i = 0; i < slideLimit; i++) {
             const slideData = this.slides[i];
